@@ -1,0 +1,389 @@
+{% extends "layout.html" %}
+
+{% block title %}AlbaID — Choose Your Service{% endblock %}
+{% block progress_width %}8%{% endblock %}
+
+{% block nav_step %}
+<span class="nav-pill">Step 1 of 4</span>
+{% endblock %}
+
+{% block step_trail %}
+<div class="steps-trail">
+  <div class="trail-step active">
+    <div class="trail-step-num">1</div>
+    <div class="trail-step-label">Service</div>
+  </div>
+  <div class="trail-step">
+    <div class="trail-step-num">2</div>
+    <div class="trail-step-label">ID Upload</div>
+  </div>
+  <div class="trail-step">
+    <div class="trail-step-num">3</div>
+    <div class="trail-step-label">Live Selfie</div>
+  </div>
+  <div class="trail-step">
+    <div class="trail-step-num">4</div>
+    <div class="trail-step-label">Verification</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hero {
+    padding: 5rem 2.5rem 3.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.4rem, 6vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    margin-bottom: 1.25rem;
+  }
+  h1 span { color: var(--red); }
+  .hero-sub {
+    font-size: 1.05rem;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.75;
+    max-width: 560px;
+    margin: 0 auto 3.5rem;
+  }
+  .service-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 860px;
+    margin: 0 auto 2rem;
+    padding: 0 2.5rem;
+  }
+  .service-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 2.5rem 2rem;
+    cursor: pointer;
+    transition: border-color 0.25s, background 0.25s, transform 0.2s, box-shadow 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .service-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 20%, var(--red-glow), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .service-card:hover {
+    border-color: var(--red);
+    background: var(--surface2);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  }
+  .service-card:hover::after { opacity: 1; }
+  .service-card.selected {
+    border-color: var(--red);
+    background: var(--surface2);
+    box-shadow: 0 0 0 1px var(--red), 0 16px 40px rgba(0,0,0,0.4);
+  }
+  .service-card.selected::after { opacity: 1; }
+  .service-icon {
+    font-size: 2.4rem;
+    line-height: 1;
+    z-index: 1;
+  }
+  .service-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    z-index: 1;
+  }
+  .service-desc {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.65;
+    z-index: 1;
+  }
+  .service-price {
+    margin-top: auto;
+    z-index: 1;
+  }
+  .price-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 500;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+  .price-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .select-indicator {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    z-index: 1;
+  }
+  .service-card.selected .select-indicator {
+    background: var(--red);
+    border-color: var(--red);
+  }
+  .service-card.selected .select-indicator::after {
+    content: '';
+    width: 8px; height: 8px;
+    background: white;
+    border-radius: 50%;
+    display: block;
+  }
+  .service-features {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 1;
+  }
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .feature-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .proceed-wrap {
+    max-width: 860px;
+    margin: 0 auto 4rem;
+    padding: 0 2.5rem;
+  }
+  .trust-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    padding: 1.5rem 2.5rem;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin: 0 0 0;
+    flex-wrap: wrap;
+  }
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .trust-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  .how-it-works {
+    padding: 3.5rem 2.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .how-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 2.5rem;
+  }
+  .steps-demo {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .demo-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .demo-step:hover { border-color: var(--border2); background: var(--surface2); }
+  .demo-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .demo-icon { font-size: 1.5rem; }
+  .demo-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .demo-desc {
+    font-size: 0.76rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.5;
+  }
+  @media (max-width: 680px) {
+    .service-grid { grid-template-columns: 1fr; padding: 0 1rem; }
+    .proceed-wrap { padding: 0 1rem; }
+    .steps-demo { grid-template-columns: 1fr 1fr; }
+    .hero { padding: 3rem 1rem 2rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="section-label" style="justify-content:center">Albania Digital Services</div>
+  <h1>Renew your<br><span>Albanian ID</span><br>digitally.</h1>
+  <p class="hero-sub">
+    Skip the queue. Upload your current ID card, take a live selfie, and let our
+    computer vision pipeline verify your identity — all from your browser.
+  </p>
+</div>
+
+<div class="trust-bar">
+  <div class="trust-item"><div class="trust-dot"></div>CV-Powered Verification</div>
+  <div class="trust-item"><div class="trust-dot"></div>ORB Face Matching</div>
+  <div class="trust-item"><div class="trust-dot"></div>Liveness Detection</div>
+  <div class="trust-item"><div class="trust-dot"></div>Test Mode — No Real Payments</div>
+</div>
+
+<form action="/choose-service" method="POST" id="service-form">
+  <div class="service-grid" style="margin-top: 3rem;">
+    <div class="service-card" id="card-id" onclick="selectService('id_card')">
+      <div class="select-indicator" id="ind-id"></div>
+      <div class="service-icon">🪪</div>
+      <div class="service-name">ID Card Renewal</div>
+      <div class="service-desc">
+        Renew your Albanian National ID card (Kartë Identiteti). 
+        Valid for citizens 18+ years.
+      </div>
+      <div class="service-features">
+        <div class="feature-item"><div class="feature-dot"></div>Face biometric verification</div>
+        <div class="feature-item"><div class="feature-dot"></div>Card boundary detection</div>
+        <div class="feature-item"><div class="feature-dot"></div>Perspective correction</div>
+        <div class="feature-item"><div class="feature-dot"></div>PDF application summary</div>
+      </div>
+      <div class="service-price">
+        <div class="price-amount">500 ALL</div>
+        <div class="price-label">≈ €5 · Test Mode</div>
+      </div>
+    </div>
+
+    <div class="service-card" id="card-passport" onclick="selectService('passport')">
+      <div class="select-indicator" id="ind-passport"></div>
+      <div class="service-icon">📘</div>
+      <div class="service-name">Passport Renewal</div>
+      <div class="service-desc">
+        Renew your Albanian passport (Pasaportë). 
+        Required for international travel.
+      </div>
+      <div class="service-features">
+        <div class="feature-item"><div class="feature-dot"></div>Face biometric verification</div>
+        <div class="feature-item"><div class="feature-dot"></div>Enhanced liveness detection</div>
+        <div class="feature-item"><div class="feature-dot"></div>High-resolution face scan</div>
+        <div class="feature-item"><div class="feature-dot"></div>PDF application summary</div>
+      </div>
+      <div class="service-price">
+        <div class="price-amount">1500 ALL</div>
+        <div class="price-label">≈ €15 · Test Mode</div>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" name="service" id="service-input" value="">
+
+  <div class="proceed-wrap" style="margin-top: 1.5rem;">
+    <button type="submit" class="btn btn-primary btn-full" id="btn-proceed" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Continue to ID Upload
+    </button>
+    <div class="alert alert-info" style="margin-top: 1rem;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span>This is a <strong>demo system</strong> for the AlbaID course project. Payments are simulated — no real money is charged. The ORB face verification threshold (<strong>72/100</strong>) was derived from analysis of 50+ genuine/impostor pairs in <code>analysis.ipynb</code> Section 3.</span>
+    </div>
+  </div>
+</form>
+
+<div class="how-it-works">
+  <div class="section-label" style="justify-content:center">How It Works</div>
+  <h2 class="how-title">4 simple steps to renewal</h2>
+  <div class="steps-demo">
+    <div class="demo-step">
+      <div class="demo-num">01</div>
+      <div class="demo-icon">💳</div>
+      <div class="demo-label">Choose Service</div>
+      <div class="demo-desc">Select ID card or passport renewal and confirm</div>
+    </div>
+    <div class="demo-step">
+      <div class="demo-num">02</div>
+      <div class="demo-icon">🪪</div>
+      <div class="demo-label">Upload Card</div>
+      <div class="demo-desc">Photo of your current ID card — we detect boundaries and extract your face</div>
+    </div>
+    <div class="demo-step">
+      <div class="demo-num">03</div>
+      <div class="demo-icon">📷</div>
+      <div class="demo-label">Live Selfie</div>
+      <div class="demo-desc">Turn your head left then right to prove liveness</div>
+    </div>
+    <div class="demo-step">
+      <div class="demo-num">04</div>
+      <div class="demo-icon">✅</div>
+      <div class="demo-label">Verified</div>
+      <div class="demo-desc">ORB similarity score determines identity match, generate PDF</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let selected = null;
+  function selectService(val) {
+    selected = val;
+    document.getElementById('service-input').value = val;
+    document.getElementById('card-id').classList.toggle('selected', val === 'id_card');
+    document.getElementById('card-passport').classList.toggle('selected', val === 'passport');
+    document.getElementById('btn-proceed').disabled = false;
+    const label = val === 'id_card' ? '💳 Continue — ID Card (500 ALL)' : '💳 Continue — Passport (1500 ALL)';
+    document.querySelector('#btn-proceed').innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      ${label}
+    `;
+  }
+</script>
+{% endblock %}

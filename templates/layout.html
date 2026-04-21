@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AlbaID — Albania's digital ID and passport renewal system powered by computer vision face verification.">
+  <title>{% block title %}AlbaID — Digital ID Renewal{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #E8423A;
+      --red-glow: rgba(232,66,58,0.18);
+      --black: #090909;
+      --surface: #111111;
+      --surface2: #191919;
+      --border: #252525;
+      --border2: #333;
+      --muted: #777;
+      --muted2: #555;
+      --white: #F2F0EC;
+      --white2: #C8C5BF;
+      --success: #2DCA73;
+      --warn: #F5A623;
+      --fail: #E8423A;
+      --blue: #4A9EFF;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: rgba(9,9,9,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--white);
+    }
+    .logo-mark {
+      width: 30px; height: 30px;
+      background: var(--red);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 800; color: white;
+      font-family: 'Syne', sans-serif;
+      flex-shrink: 0;
+    }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+    .nav-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      padding: 4px 10px;
+      border: 1px solid var(--border2);
+      border-radius: 100px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .nav-step-indicator {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--red);
+      letter-spacing: 0.06em;
+    }
+    /* ── PROGRESS BAR ── */
+    .progress-bar-wrap {
+      height: 2px;
+      background: var(--border);
+      position: sticky;
+      top: 54px;
+      z-index: 199;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--red);
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+    /* ── STEP BREADCRUMB ── */
+    .steps-trail {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .steps-trail::-webkit-scrollbar { display: none; }
+    .trail-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0.75rem 1.5rem;
+      border-right: 1px solid var(--border);
+      cursor: default;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .trail-step.active { background: var(--surface2); }
+    .trail-step-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.6rem;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .trail-step.done .trail-step-num {
+      background: var(--success);
+      border-color: var(--success);
+      color: #000;
+    }
+    .trail-step.active .trail-step-num {
+      background: var(--red);
+      border-color: var(--red);
+      color: white;
+    }
+    .trail-step-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .trail-step.active .trail-step-label { color: var(--white); }
+    .trail-step.done .trail-step-label { color: var(--success); }
+
+    /* ── CONTAINERS ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 2.5rem; }
+    .container-sm { max-width: 780px; margin: 0 auto; padding: 0 2.5rem; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 0.85rem 2rem;
+      border-radius: 6px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: none; cursor: pointer;
+      transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--red);
+      color: white;
+      box-shadow: 0 0 0 0 var(--red-glow);
+    }
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+      box-shadow: 0 0 30px var(--red-glow);
+    }
+    .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--white2);
+      border: 1px solid var(--border2);
+    }
+    .btn-ghost:hover { background: var(--surface2); }
+    .btn-full { width: 100%; }
+
+    /* ── CARDS ── */
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .card-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      color: var(--muted);
+      border: 1px solid var(--border2);
+      padding: 2px 8px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .card-body { padding: 1.25rem; }
+
+    /* ── STATUS BADGES ── */
+    .badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      padding: 5px 12px;
+      border-radius: 100px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .badge-success { background: rgba(45,202,115,0.12); color: var(--success); border: 1px solid rgba(45,202,115,0.25); }
+    .badge-fail    { background: rgba(232,66,58,0.12);  color: var(--fail);    border: 1px solid rgba(232,66,58,0.25); }
+    .badge-warn    { background: rgba(245,166,35,0.12); color: var(--warn);    border: 1px solid rgba(245,166,35,0.25); }
+    .badge-info    { background: rgba(74,158,255,0.12); color: var(--blue);    border: 1px solid rgba(74,158,255,0.25); }
+    .badge-neutral { background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
+
+    /* ── SPINNER ── */
+    .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── DETAIL ROWS ── */
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.83rem;
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-key { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); letter-spacing: 0.05em; }
+    .detail-val { font-weight: 500; }
+    .detail-val.ok   { color: var(--success); }
+    .detail-val.bad  { color: var(--fail); }
+    .detail-val.warn { color: var(--warn); }
+    .detail-val.neutral { color: var(--muted); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4rem;
+    }
+    .footer-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted2);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── ALERT ── */
+    .alert {
+      padding: 0.9rem 1.25rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.6;
+    }
+    .alert-info  { background: rgba(74,158,255,0.08);  border: 1px solid rgba(74,158,255,0.2);  color: #7ebfff; }
+    .alert-warn  { background: rgba(245,166,35,0.08);  border: 1px solid rgba(245,166,35,0.2);  color: #f5c86a; }
+    .alert-error { background: rgba(232,66,58,0.08);   border: 1px solid rgba(232,66,58,0.2);   color: #f08080; }
+    .alert-success { background: rgba(45,202,115,0.08); border: 1px solid rgba(45,202,115,0.2); color: #6de0a7; }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      color: var(--red);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1rem;
+    }
+    .section-label::before {
+      content: '';
+      width: 24px; height: 1px;
+      background: var(--red);
+      display: inline-block;
+    }
+
+    /* ── UTILITIES ── */
+    .mono { font-family: 'DM Mono', monospace; }
+    .muted { color: var(--muted); }
+    .text-sm { font-size: 0.82rem; }
+    .text-xs { font-size: 0.72rem; }
+    .mt-sm { margin-top: 0.75rem; }
+    .mt-md { margin-top: 1.25rem; }
+    .mt-lg { margin-top: 2rem; }
+    .mb-sm { margin-bottom: 0.75rem; }
+    .mb-md { margin-bottom: 1.25rem; }
+    .mb-lg { margin-bottom: 2rem; }
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      nav, .container, .container-sm, footer { padding-left: 1rem; padding-right: 1rem; }
+      .trail-step-label { display: none; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">
+    <div class="logo-mark">AI</div>
+    AlbaID
+  </a>
+  <div class="nav-right">
+    {% block nav_step %}
+    <span class="nav-pill">Albania eKYC System</span>
+    {% endblock %}
+  </div>
+</nav>
+
+<div class="progress-bar-wrap">
+  <div class="progress-bar-fill" id="progress-bar" style="width: {% block progress_width %}0%{% endblock %}"></div>
+</div>
+
+{% block step_trail %}{% endblock %}
+
+{% block content %}{% endblock %}
+
+<footer>
+  <span class="footer-text">AlbaID — Digital ID Renewal System</span>
+  <span class="footer-text">ORB Threshold: {{ orb_threshold if orb_threshold is defined else 72 }} | Computer Vision Pipeline</span>
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

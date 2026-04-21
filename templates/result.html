@@ -1,0 +1,611 @@
+{% extends "layout.html" %}
+
+{% block title %}AlbaID — Verification Result{% endblock %}
+{% block progress_width %}85%{% endblock %}
+
+{% block nav_step %}
+<span class="nav-step-indicator">Step 4 / 4</span>
+{% endblock %}
+
+{% block step_trail %}
+<div class="steps-trail">
+  <div class="trail-step done"><div class="trail-step-num">✓</div><div class="trail-step-label">Service</div></div>
+  <div class="trail-step done"><div class="trail-step-num">✓</div><div class="trail-step-label">ID Upload</div></div>
+  <div class="trail-step done"><div class="trail-step-num">✓</div><div class="trail-step-label">Live Selfie</div></div>
+  <div class="trail-step active"><div class="trail-step-num">4</div><div class="trail-step-label">Verification</div></div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2.5rem 2.5rem 4rem;
+  }
+  h1 { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; letter-spacing:-0.03em; margin-bottom:0.6rem; }
+  /* VERDICT BANNER */
+  .verdict-banner {
+    border-radius: 10px;
+    padding: 2rem 2rem;
+    margin: 2rem 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: all 0.4s;
+  }
+  .verdict-banner.match   { border-color: rgba(45,202,115,0.5);  background: rgba(45,202,115,0.06); }
+  .verdict-banner.mismatch{ border-color: rgba(232,66,58,0.5);   background: rgba(232,66,58,0.06); }
+  .verdict-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+  }
+  .verdict-banner.match .verdict-icon    { background: rgba(45,202,115,0.15); }
+  .verdict-banner.mismatch .verdict-icon { background: rgba(232,66,58,0.15); }
+  .verdict-main { flex: 1; }
+  .verdict-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: var(--muted);
+  }
+  .verdict-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .verdict-banner.match .verdict-title    { color: var(--success); }
+  .verdict-banner.mismatch .verdict-title { color: var(--fail); }
+  .verdict-meta {
+    font-size: 0.84rem;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.6;
+  }
+  /* SCORE BAR */
+  .score-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .score-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1rem;
+  }
+  .score-info {}
+  .score-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .score-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .score-out-of {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .threshold-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-align: right;
+  }
+  .threshold-label strong { color: var(--white2); }
+  .score-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 1.4s cubic-bezier(0.4,0,0.2,1);
+  }
+  .threshold-marker {
+    position: absolute;
+    top: -4px; bottom: -4px;
+    width: 2px;
+    background: var(--warn);
+    border-radius: 1px;
+  }
+  .threshold-marker-label {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--warn);
+    white-space: nowrap;
+    letter-spacing: 0.06em;
+  }
+  /* ANALYSIS GRID */
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  /* FACE COMPARE */
+  .face-compare-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .face-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    text-align: center;
+  }
+  .face-card img {
+    width: 100%; height: 180px;
+    object-fit: cover;
+    display: block;
+    filter: grayscale(10%);
+  }
+  .face-card-label {
+    padding: 0.6rem 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  /* NARRATIVE */
+  .narrative-block {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .narrative-text { font-size: 0.88rem; color: #BBB; line-height: 1.8; }
+  /* ACADEMIC NOTE */
+  .academic-note {
+    border: 1px solid rgba(74,158,255,0.2);
+    border-radius: 8px;
+    background: rgba(74,158,255,0.04);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.82rem;
+    color: #7ebfff;
+    line-height: 1.7;
+  }
+  .academic-note strong { color: #a8d4ff; }
+  /* APPLICATION FORM */
+  .form-section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    margin-bottom: 1.5rem;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+  }
+  .form-field { display: flex; flex-direction: column; gap: 6px; }
+  .form-field.full { grid-column: 1/-1; }
+  label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  input[type="text"], input[type="date"], input[type="email"], textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    outline: none;
+  }
+  input:focus, textarea:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(232,66,58,0.12);
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted2); }
+  textarea { resize: vertical; min-height: 80px; }
+  .form-actions { padding: 0 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+  /* RETRY overlay */
+  .retry-section { text-align: center; padding: 2rem; }
+  /* LOADING */
+  .loading-state {
+    text-align: center;
+    padding: 4rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .loading-state h2 { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; }
+  .loading-steps-list { display: flex; flex-direction: column; gap: 10px; margin-top: 0.5rem; width: 100%; max-width: 360px; }
+  .l-step {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'DM Mono', monospace; font-size: 0.7rem;
+    color: var(--muted); letter-spacing: 0.07em; text-transform: uppercase;
+  }
+  .l-step.active { color: var(--white); }
+  .l-step.done { color: var(--success); }
+  .l-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+  .l-step.active .l-dot { background: var(--red); animation: blink2 0.8s infinite; }
+  .l-step.done .l-dot  { background: var(--success); }
+  @keyframes blink2 { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  @media (max-width: 680px) {
+    .analysis-grid, .face-compare-section, .form-grid { grid-template-columns: 1fr; }
+    .page-wrap { padding: 1.5rem 1rem 3rem; }
+    .score-val { font-size: 2rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="section-label">Step 4 — Identity Verification</div>
+  <h1>Biometric <span style="color:var(--red)">Analysis</span></h1>
+
+  <!-- LOADING STATE -->
+  <div id="loading-state" class="loading-state">
+    <div class="spinner" style="width:48px;height:48px;border-width:3px"></div>
+    <h2>Running ORB Verification...</h2>
+    <p class="muted text-sm">Comparing ID card face vs live selfie</p>
+    <div class="loading-steps-list">
+      <div class="l-step active" id="ls-1"><div class="l-dot"></div>Loading face descriptors</div>
+      <div class="l-step" id="ls-2"><div class="l-dot"></div>Extracting ORB keypoints (500/image)</div>
+      <div class="l-step" id="ls-3"><div class="l-dot"></div>BFMatcher — Hamming distance</div>
+      <div class="l-step" id="ls-4"><div class="l-dot"></div>Applying threshold {{ orb_threshold }}/100</div>
+      <div class="l-step" id="ls-5"><div class="l-dot"></div>Generating verdict</div>
+    </div>
+  </div>
+
+  <!-- RESULTS (hidden until loaded) -->
+  <div id="result-content" class="hidden">
+
+    <!-- VERDICT BANNER -->
+    <div class="verdict-banner" id="verdict-banner">
+      <div class="verdict-icon" id="verdict-icon">—</div>
+      <div class="verdict-main">
+        <div class="verdict-label">Identity Verification Result</div>
+        <div class="verdict-title" id="verdict-title">—</div>
+        <div class="verdict-meta" id="verdict-meta">—</div>
+      </div>
+      <div id="verdict-badge-area"></div>
+    </div>
+
+    <!-- ORB SCORE BAR -->
+    <div class="score-section">
+      <div class="score-top">
+        <div class="score-info">
+          <div class="score-name">ORB Similarity Score</div>
+          <div class="score-val" id="score-val">—</div>
+          <div class="score-out-of">/ 100 matches</div>
+        </div>
+        <div class="threshold-label">
+          Threshold from <strong>analysis.ipynb §3</strong><br>
+          <strong id="threshold-display">{{ orb_threshold }}</strong> / 100 (ROC-optimized)
+        </div>
+      </div>
+      <div class="score-track">
+        <div class="threshold-marker" id="threshold-marker">
+          <div class="threshold-marker-label">Threshold</div>
+        </div>
+        <div class="score-fill" id="score-fill"></div>
+      </div>
+    </div>
+
+    <!-- FACE COMPARISON -->
+    <div class="face-compare-section">
+      <div class="face-card">
+        <img id="id-face-img" src="" alt="ID Card Face">
+        <div class="face-card-label">ID Card — Extracted Face</div>
+      </div>
+      <div class="face-card">
+        <img id="selfie-face-img" src="" alt="Selfie Face">
+        <div class="face-card-label">Live Selfie — Extracted Face</div>
+      </div>
+    </div>
+
+    <!-- ANALYSIS GRID -->
+    <div class="analysis-grid">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Biometric Details</span></div>
+        <div class="card-body">
+          <div class="detail-row">
+            <span class="detail-key">ORB Score</span>
+            <span class="detail-val" id="d-orb-score">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Decision Threshold</span>
+            <span class="detail-val neutral">{{ orb_threshold }} / 100</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Confidence</span>
+            <span class="detail-val" id="d-confidence">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Processing Time</span>
+            <span class="detail-val" id="d-proc-time">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Method</span>
+            <span class="detail-val neutral">ORB + BFMatcher</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Session Info</span></div>
+        <div class="card-body">
+          <div class="detail-row">
+            <span class="detail-key">Service</span>
+            <span class="detail-val neutral">{{ "ID Card Renewal" if service == "id_card" else "Passport Renewal" }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Payment Ref</span>
+            <span class="detail-val neutral mono" style="font-size:0.7rem">{{ payment_ref }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Timestamp</span>
+            <span class="detail-val neutral" id="d-timestamp">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-key">Liveness Passed</span>
+            <span class="detail-val ok">Yes ✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACADEMIC CONNECTION NOTE -->
+    <div class="academic-note">
+      📊 <strong>Academic Note:</strong> The threshold of <strong>{{ orb_threshold }}/100</strong> used above 
+      was determined in <strong>analysis.ipynb Section 3</strong> — ORB similarity score distributions were plotted 
+      for 50+ genuine pairs (same person: ID card + selfie) and impostor pairs (different people). 
+      The ROC-optimal threshold was found at <strong>{{ orb_threshold }}</strong> matches/100-keypoints, 
+      maximizing True Accept Rate while minimizing False Accept Rate. This directly connects the 
+      academic analysis to this production system.
+    </div>
+
+    <!-- NARRATIVE REPORT -->
+    <div class="narrative-block" id="narrative-block">
+      <div class="card-title" style="margin-bottom:0.75rem">Verification Report</div>
+      <div class="narrative-text" id="narrative-text">—</div>
+    </div>
+
+    <!-- RETRY section (shown on mismatch) -->
+    <div class="hidden" id="retry-section">
+      <div class="alert alert-warn" style="margin-bottom:1rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Verification failed. You can retake the selfie under better lighting conditions and try again.</span>
+      </div>
+      <a href="/scan" class="btn btn-ghost btn-full">↩ Retake Selfie</a>
+    </div>
+
+    <!-- APPLICATION FORM (shown on match) -->
+    <div class="hidden" id="form-section" class="form-section">
+      <div class="form-section">
+        <div class="card-header" style="background:var(--surface2)">
+          <span class="card-title" style="color:var(--success)">✓ Identity Confirmed — Submit Application</span>
+          <span class="card-tag">Step 4</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="fullName">Full Name (as on ID)</label>
+            <input type="text" id="fullName" name="fullName" placeholder="e.g. Sindi Gugalli" required>
+          </div>
+          <div class="form-field">
+            <label for="dob">Date of Birth</label>
+            <input type="date" id="dob" name="dob" required>
+          </div>
+          <div class="form-field">
+            <label for="idNumber">ID Number</label>
+            <input type="text" id="idNumber" name="idNumber" placeholder="e.g. B12345678A" required>
+          </div>
+          <div class="form-field">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" placeholder="your@email.com" required>
+          </div>
+          <div class="form-field full">
+            <label for="address">Residential Address</label>
+            <input type="text" id="address" name="address" placeholder="Rr. Myslym Shyri, Tiranë">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary btn-full" id="btn-pdf" onclick="generatePDF()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Download PDF Application Summary
+          </button>
+          <div class="muted text-xs" style="text-align:center">
+            PDF includes: face photos, ORB score, applicant data, verification narrative, payment reference.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end result-content -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const THRESHOLD = {{ orb_threshold }};
+
+  // Animate loading steps, then run API call
+  async function runVerification() {
+    const steps = ['ls-1','ls-2','ls-3','ls-4','ls-5'];
+    let i = 0;
+    const iv = setInterval(() => {
+      if (i > 0) { const p = document.getElementById(steps[i-1]); p.className='l-step done'; p.querySelector('.l-dot').style.animation='none'; }
+      if (i < steps.length) { document.getElementById(steps[i]).className='l-step active'; i++; }
+      else clearInterval(iv);
+    }, 600);
+
+    try {
+      const res = await fetch('/api/verify', { method: 'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
+      const data = await res.json();
+
+      clearInterval(iv);
+      steps.forEach(id => { const el=document.getElementById(id); el.className='l-step done'; });
+      await delay(400);
+
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('result-content').classList.remove('hidden');
+
+      if (data.error) { showError(data.error); return; }
+      renderResult(data);
+    } catch(e) {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('result-content').classList.remove('hidden');
+      showError('Network error: ' + e.message);
+    }
+  }
+
+  function renderResult(r) {
+    const isMatch = r.verdict === 'MATCH';
+    const score   = r.orbScore || 0;
+    const conf    = r.confidencePercent || 0;
+
+    // Verdict banner
+    const banner = document.getElementById('verdict-banner');
+    banner.className = 'verdict-banner ' + (isMatch ? 'match' : 'mismatch');
+    document.getElementById('verdict-icon').textContent = isMatch ? '✓' : '✗';
+    document.getElementById('verdict-title').textContent = isMatch ? 'Identity Verified' : 'Verification Failed';
+    document.getElementById('verdict-meta').textContent = isMatch
+      ? `ORB score ${score}/100 — exceeds threshold of ${THRESHOLD}. Biometric signatures match.`
+      : `ORB score ${score}/100 — below threshold of ${THRESHOLD}. No biometric match found.`;
+
+    // Score bar
+    document.getElementById('score-val').textContent = score.toFixed(1);
+    document.getElementById('score-val').style.color = isMatch ? 'var(--success)' : 'var(--fail)';
+    const fill = document.getElementById('score-fill');
+    fill.style.background = isMatch ? 'var(--success)' : 'var(--fail)';
+    setTimeout(() => { fill.style.width = Math.min(score, 100) + '%'; }, 150);
+
+    // Threshold marker at correct position
+    const marker = document.getElementById('threshold-marker');
+    marker.style.left = THRESHOLD + '%';
+
+    // Detail rows
+    const scoreColor = isMatch ? 'ok' : 'bad';
+    document.getElementById('d-orb-score').innerHTML = `<span class="${scoreColor}">${score.toFixed(1)}/100</span>`;
+    document.getElementById('d-confidence').innerHTML = `<span class="${scoreColor}">${conf.toFixed(1)}%</span>`;
+    document.getElementById('d-proc-time').textContent = (r.processingMs || 0).toFixed(1) + ' ms';
+    document.getElementById('d-timestamp').textContent = new Date().toLocaleTimeString();
+
+    // Face images
+    if (r.idFaceUrl)     { document.getElementById('id-face-img').src     = r.idFaceUrl     + '?t=' + Date.now(); }
+    if (r.selfieFaceUrl) { document.getElementById('selfie-face-img').src = r.selfieFaceUrl + '?t=' + Date.now(); }
+
+    // Narrative
+    document.getElementById('narrative-text').textContent = r.narrative || '—';
+
+    // Show/hide form vs retry
+    if (isMatch) {
+      document.getElementById('form-section').classList.remove('hidden');
+    } else {
+      document.getElementById('retry-section').classList.remove('hidden');
+    }
+  }
+
+  async function generatePDF() {
+    const btn = document.getElementById('btn-pdf');
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner" style="width:16px;height:16px;border-width:2px"></div> Generating PDF...`;
+
+    const payload = {
+      fullName: document.getElementById('fullName').value || '—',
+      dob:      document.getElementById('dob').value      || '—',
+      idNumber: document.getElementById('idNumber').value || '—',
+      email:    document.getElementById('email').value    || '—',
+    };
+
+    try {
+      const res = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert('PDF error: ' + (err.error || 'Unknown error'));
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Download PDF Application Summary`;
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'AlbaID_Application.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> PDF Downloaded ✓`;
+      btn.style.background = 'var(--success)';
+    } catch(e) {
+      alert('PDF error: ' + e.message);
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg> Download PDF Application Summary`;
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('loading-state').classList.add('hidden');
+    document.getElementById('result-content').classList.remove('hidden');
+    const banner = document.getElementById('verdict-banner');
+    banner.className = 'verdict-banner mismatch';
+    document.getElementById('verdict-icon').textContent = '!';
+    document.getElementById('verdict-title').textContent = 'Processing Error';
+    document.getElementById('verdict-meta').textContent = msg;
+    document.getElementById('retry-section').classList.remove('hidden');
+  }
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // Run automatically on page load
+  window.addEventListener('load', runVerification);
+</script>
+{% endblock %}

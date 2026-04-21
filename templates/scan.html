@@ -1,0 +1,615 @@
+{% extends "layout.html" %}
+
+{% block title %}AlbaID — Live Selfie Scan{% endblock %}
+{% block progress_width %}60%{% endblock %}
+
+{% block nav_step %}
+<span class="nav-step-indicator">Step 3 / 4</span>
+{% endblock %}
+
+{% block step_trail %}
+<div class="steps-trail">
+  <div class="trail-step done"><div class="trail-step-num">✓</div><div class="trail-step-label">Service</div></div>
+  <div class="trail-step done"><div class="trail-step-num">✓</div><div class="trail-step-label">ID Upload</div></div>
+  <div class="trail-step active"><div class="trail-step-num">3</div><div class="trail-step-label">Live Selfie</div></div>
+  <div class="trail-step"><div class="trail-step-num">4</div><div class="trail-step-label">Verification</div></div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-header {
+    padding: 2.5rem 2.5rem 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; letter-spacing:-0.03em; margin-bottom:0.6rem; }
+  h1 span { color: var(--red); }
+  .scan-layout {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 2.5rem 3rem;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+  }
+  /* WEBCAM */
+  .cam-wrap {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4/3;
+  }
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1); /* mirror */
+  }
+  /* FACE GUIDE OVAL */
+  .face-oval {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48%;
+    aspect-ratio: 3/4;
+    border: 3px solid rgba(255,255,255,0.25);
+    border-radius: 50%;
+    pointer-events: none;
+    transition: border-color 0.3s;
+  }
+  .face-oval.good { border-color: rgba(45,202,115,0.8); box-shadow: 0 0 20px rgba(45,202,115,0.3); }
+  .face-oval.scanning { border-color: rgba(232,66,58,0.8); box-shadow: 0 0 20px rgba(232,66,58,0.3); animation: pulse-oval 1s ease-in-out infinite; }
+  @keyframes pulse-oval { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+  /* CORNER GUIDES */
+  .corner { position: absolute; width: 20px; height: 20px; }
+  .corner-tl { top: 14px; left: 14px; border-top: 2px solid var(--red); border-left: 2px solid var(--red); border-radius: 2px 0 0 0; }
+  .corner-tr { top: 14px; right: 14px; border-top: 2px solid var(--red); border-right: 2px solid var(--red); border-radius: 0 2px 0 0; }
+  .corner-bl { bottom: 14px; left: 14px; border-bottom: 2px solid var(--red); border-left: 2px solid var(--red); border-radius: 0 0 0 2px; }
+  .corner-br { bottom: 14px; right: 14px; border-bottom: 2px solid var(--red); border-right: 2px solid var(--red); border-radius: 0 0 2px 0; }
+  /* INSTRUCTION BAR */
+  .cam-instruction {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(9,9,9,0.8);
+    backdrop-filter: blur(8px);
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white2);
+    transition: all 0.3s;
+  }
+  .instr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted2); flex-shrink: 0; animation: blink 1.2s ease infinite; }
+  .instr-dot.active { background: var(--red); }
+  .instr-dot.done { background: var(--success); animation: none; }
+  @keyframes blink { 0%,100%{ opacity:1 } 50%{ opacity:0.3 } }
+  /* LIVENESS INDICATOR */
+  .liveness-bar {
+    position: absolute;
+    top: 14px; left: 14px; right: 14px;
+    background: rgba(9,9,9,0.7);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .liveness-stages { display: flex; gap: 8px; align-items: center; }
+  .stage-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    padding: 3px 9px;
+    border-radius: 100px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .stage-pill.active { border-color: var(--red); color: var(--red); background: rgba(232,66,58,0.1); }
+  .stage-pill.done   { border-color: var(--success); color: var(--success); background: rgba(45,202,115,0.1); }
+  .live-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .live-badge.live { border-color: var(--success); color: var(--success); background: rgba(45,202,115,0.1); }
+  /* CANVAS (hidden, for capture) */
+  #capture-canvas { display: none; }
+  /* SIDE PANEL */
+  .side-panel { display: flex; flex-direction: column; gap: 1rem; }
+  .status-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .liveness-steps { padding: 0.5rem 0; }
+  .liveness-step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .liveness-step-row:last-child { border-bottom: none; }
+  .liveness-step-row.active { background: rgba(232,66,58,0.04); }
+  .liveness-step-row.done   { background: rgba(45,202,115,0.04); }
+  .lsr-icon {
+    width: 32px; height: 32px;
+    border-radius: 7px;
+    background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .liveness-step-row.active .lsr-icon { background: rgba(232,66,58,0.12); }
+  .liveness-step-row.done .lsr-icon   { background: rgba(45,202,115,0.12); }
+  .lsr-text { flex: 1; }
+  .lsr-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .lsr-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .lsr-status.active { color: var(--red); }
+  .lsr-status.done   { color: var(--success); }
+  /* FACE COMPARE */
+  .face-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .face-thumb {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .face-thumb img { width: 100%; height: 100px; object-fit: cover; display: block; }
+  .face-thumb-label {
+    padding: 4px 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  /* START BUTTON */
+  .cam-start-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(9,9,9,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+  }
+  .cam-start-icon {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 2px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    background: var(--surface);
+  }
+  @media (max-width: 760px) {
+    .scan-layout { grid-template-columns: 1fr; }
+    .page-header, .scan-layout { padding-left: 1rem; padding-right: 1rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="section-label">Step 3 — Liveness Verification</div>
+  <h1>Live <span>selfie</span> scan</h1>
+  <p class="muted text-sm" style="line-height:1.7;max-width:560px">
+    Position your face within the oval guide. Follow the instructions — turn your head
+    left, then right to confirm you're a real person, not a photo.
+  </p>
+</div>
+
+<div class="scan-layout">
+  <!-- WEBCAM -->
+  <div>
+    <div class="cam-wrap" id="cam-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="capture-canvas"></canvas>
+
+      <!-- Start overlay -->
+      <div class="cam-start-overlay" id="start-overlay">
+        <div class="cam-start-icon">📷</div>
+        <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;text-align:center">Allow Camera Access</div>
+        <div class="muted text-sm" style="text-align:center;max-width:240px">Click below to start your webcam and begin liveness check</div>
+        <button class="btn btn-primary" id="btn-start-cam" onclick="startCamera()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M20.94 11A8.994 8.994 0 0021 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c.34 0 .67.02 1 .06"/><path d="M22 12a10 10 0 00-10-10"/></svg>
+          Enable Webcam
+        </button>
+      </div>
+
+      <!-- Active overlays (hidden until cam starts) -->
+      <div class="face-oval" id="face-oval"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="liveness-bar" id="liveness-bar" style="display:none">
+        <div class="liveness-stages">
+          <div class="stage-pill active" id="stage-center">Center</div>
+          <div class="stage-pill" id="stage-left">← Left</div>
+          <div class="stage-pill" id="stage-right">Right →</div>
+          <div class="stage-pill" id="stage-done">Capture</div>
+        </div>
+        <div class="live-badge" id="live-badge">Checking</div>
+      </div>
+      <div class="cam-instruction" id="cam-instruction" style="display:none">
+        <div class="instr-dot active" id="instr-dot"></div>
+        <span id="instruction-text">Looking for your face...</span>
+      </div>
+    </div>
+
+    <!-- After capture: retake -->
+    <div class="hidden" id="after-capture" style="margin-top:1rem">
+      <div class="alert alert-success" style="margin-bottom:1rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M20 6L9 17l-5-5"/></svg>
+        <span>Liveness check passed ✓ — selfie captured and face extracted successfully.</span>
+      </div>
+      <div style="display:flex;gap:0.75rem">
+        <button onclick="retakeCamera()" class="btn btn-ghost" style="flex:1">↩ Retake</button>
+        <a href="/result" class="btn btn-primary" style="flex:2" id="btn-verify">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Run Verification →
+        </a>
+      </div>
+    </div>
+
+    <!-- Camera error -->
+    <div class="alert alert-error hidden" id="cam-error" style="margin-top:1rem"></div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel">
+    <!-- Liveness steps -->
+    <div class="status-card">
+      <div class="card-header">
+        <span class="card-title">Liveness Check</span>
+        <span class="live-badge" id="side-live-badge">Pending</span>
+      </div>
+      <div class="liveness-steps">
+        <div class="liveness-step-row active" id="lsr-1">
+          <div class="lsr-icon">😐</div>
+          <div class="lsr-text">
+            <div class="lsr-label">Face Centered</div>
+            <div class="lsr-status active" id="lsr-1-s">Detecting face...</div>
+          </div>
+        </div>
+        <div class="liveness-step-row" id="lsr-2">
+          <div class="lsr-icon">⬅️</div>
+          <div class="lsr-text">
+            <div class="lsr-label">Turn Head Left</div>
+            <div class="lsr-status" id="lsr-2-s">Waiting</div>
+          </div>
+        </div>
+        <div class="liveness-step-row" id="lsr-3">
+          <div class="lsr-icon">➡️</div>
+          <div class="lsr-text">
+            <div class="lsr-label">Turn Head Right</div>
+            <div class="lsr-status" id="lsr-3-s">Waiting</div>
+          </div>
+        </div>
+        <div class="liveness-step-row" id="lsr-4">
+          <div class="lsr-icon">📸</div>
+          <div class="lsr-text">
+            <div class="lsr-label">Capture Selfie</div>
+            <div class="lsr-status" id="lsr-4-s">Waiting</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Face comparison -->
+    <div class="status-card">
+      <div class="card-header">
+        <span class="card-title">Face Comparison Preview</span>
+        <span class="card-tag">Side-by-side</span>
+      </div>
+      <div class="face-compare">
+        <div class="face-thumb">
+          <img id="id-face-thumb" src="" alt="ID Face" style="background:var(--surface2)">
+          <div class="face-thumb-label">ID Card Face</div>
+        </div>
+        <div class="face-thumb">
+          <img id="selfie-face-thumb" src="" alt="Selfie" style="background:var(--surface2);opacity:0.3">
+          <div class="face-thumb-label">Live Selfie</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Tips</span>
+      </div>
+      <div class="card-body">
+        <div class="detail-row">
+          <span class="detail-key">Lighting</span>
+          <span class="detail-val neutral">Face forward, well-lit</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">Distance</span>
+          <span class="detail-val neutral">Arm's length from screen</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">Head Turn</span>
+          <span class="detail-val neutral">~30° each direction</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">Background</span>
+          <span class="detail-val neutral">Plain / uncluttered</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const LIVENESS_INTERVAL_MS = 900;
+  const LEFT_THRESHOLD  = 0.42; // relX < this = turned left
+  const RIGHT_THRESHOLD = 0.58; // relX > this = turned right
+  const CENTER_MIN = 0.38;
+  const CENTER_MAX = 0.62;
+
+  let stream = null;
+  let livenessTimer = null;
+  let stage = 'idle'; // idle → center → left → right → capture → done
+  let seenLeft = false;
+  let seenRight = false;
+  let centerFrames = 0;
+  let capturing = false;
+
+  // Load the ID face thumb from session (set by upload step)
+  window.addEventListener('load', () => {
+    // If the server stored the face path in session, it embeds a data URL via API
+    fetch('/api/get-id-face')
+      .then(r => r.json())
+      .then(d => {
+        if (d.faceUrl) {
+          document.getElementById('id-face-thumb').src = d.faceUrl + '?t=' + Date.now();
+        }
+      }).catch(() => {});
+  });
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      await video.play();
+
+      document.getElementById('start-overlay').style.display = 'none';
+      document.getElementById('face-oval').style.display = '';
+      document.getElementById('liveness-bar').style.display = 'flex';
+      document.getElementById('cam-instruction').style.display = 'flex';
+
+      stage = 'center';
+      startLivenessLoop();
+    } catch (err) {
+      showCamError('Camera access denied or unavailable: ' + err.message + '. Please allow camera access and refresh.');
+    }
+  }
+
+  function startLivenessLoop() {
+    livenessTimer = setInterval(sendFrame, LIVENESS_INTERVAL_MS);
+  }
+
+  async function sendFrame() {
+    if (stage === 'done' || capturing) return;
+    const video = document.getElementById('video');
+    if (video.readyState < 2) return;
+
+    const canvas = document.getElementById('capture-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const b64 = canvas.toDataURL('image/jpeg', 0.7);
+
+    try {
+      const res = await fetch('/api/liveness', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frame_b64: b64 }),
+      });
+      const data = await res.json();
+      handleLivenessResult(data, b64);
+    } catch (e) { /* ignore */ }
+  }
+
+  function handleLivenessResult(data, b64) {
+    const oval = document.getElementById('face-oval');
+    const instrText = document.getElementById('instruction-text');
+    const instrDot  = document.getElementById('instr-dot');
+
+    if (!data.faceDetected) {
+      oval.className = 'face-oval';
+      instrText.textContent = 'No face detected — center your face in the oval';
+      instrDot.className = 'instr-dot active';
+      centerFrames = 0;
+      return;
+    }
+
+    const relX = data.relX;
+    oval.className = 'face-oval good';
+    instrDot.className = 'instr-dot done';
+
+    if (stage === 'center') {
+      setLSR(1, 'active', 'Face detected ✓');
+      if (relX >= CENTER_MIN && relX <= CENTER_MAX) {
+        centerFrames++;
+        instrText.textContent = 'Good! Now slowly turn your head LEFT ←';
+        if (centerFrames >= 2) {
+          stage = 'left';
+          setStage('left');
+          setLSR(1, 'done', 'Centered ✓');
+          setLSR(2, 'active', 'Looking for left turn...');
+        }
+      }
+    } else if (stage === 'left') {
+      instrText.textContent = 'Turn your head LEFT ←';
+      oval.className = 'face-oval scanning';
+      if (relX < LEFT_THRESHOLD) {
+        seenLeft = true;
+        stage = 'right';
+        setStage('right');
+        setLSR(2, 'done', 'Left turn detected ✓');
+        setLSR(3, 'active', 'Now turn RIGHT →');
+        instrText.textContent = 'Now turn your head RIGHT →';
+      }
+    } else if (stage === 'right') {
+      instrText.textContent = 'Turn your head RIGHT →';
+      oval.className = 'face-oval scanning';
+      if (relX > RIGHT_THRESHOLD) {
+        seenRight = true;
+        stage = 'capture';
+        setStage('done');
+        setLSR(3, 'done', 'Right turn detected ✓');
+        setLSR(4, 'active', 'Capturing selfie...');
+        instrText.textContent = 'Hold still — capturing...';
+        clearInterval(livenessTimer);
+        captureAndSend();
+      }
+    }
+  }
+
+  async function captureAndSend() {
+    capturing = true;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('capture-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    // brief delay so face is facing forward again
+    await delay(400);
+    ctx.drawImage(video, 0, 0);
+    const b64 = canvas.toDataURL('image/jpeg', 0.92);
+
+    try {
+      const res = await fetch('/api/capture-selfie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ frame_b64: b64 }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        showCamError(data.error + ' — please retake.');
+        capturing = false;
+        stage = 'center';
+        seenLeft = false; seenRight = false; centerFrames = 0;
+        setStage('center');
+        startLivenessLoop();
+        return;
+      }
+
+      // Success!
+      stage = 'done';
+      setLSR(4, 'done', 'Selfie captured ✓');
+      document.getElementById('side-live-badge').classList.add('live');
+      document.getElementById('side-live-badge').textContent = 'LIVE ✓';
+      document.getElementById('live-badge').classList.add('live');
+      document.getElementById('live-badge').textContent = 'LIVE ✓';
+      document.getElementById('face-oval').className = 'face-oval good';
+      document.getElementById('cam-instruction').style.display = 'none';
+
+      if (data.faceUrl) {
+        const thumb = document.getElementById('selfie-face-thumb');
+        thumb.src = data.faceUrl + '?t=' + Date.now();
+        thumb.style.opacity = '1';
+      }
+
+      document.getElementById('after-capture').classList.remove('hidden');
+
+      // Stop cam stream
+      if (stream) stream.getTracks().forEach(t => t.stop());
+
+    } catch (e) {
+      showCamError('Capture failed: ' + e.message);
+      capturing = false;
+    }
+  }
+
+  function setStage(s) {
+    ['center','left','right','done'].forEach(id => {
+      const el = document.getElementById('stage-' + id);
+      if (!el) return;
+      el.className = 'stage-pill' + (id === s ? ' active' : (
+        (['center','left','right','done'].indexOf(id) < ['center','left','right','done'].indexOf(s)) ? ' done' : ''
+      ));
+    });
+  }
+
+  function setLSR(n, state, msg) {
+    const row = document.getElementById(`lsr-${n}`);
+    const status = document.getElementById(`lsr-${n}-s`);
+    row.className = 'liveness-step-row ' + (state === 'done' ? 'done' : state === 'active' ? 'active' : '');
+    status.className = 'lsr-status ' + state;
+    status.textContent = msg;
+  }
+
+  function retakeCamera() {
+    stage = 'idle'; seenLeft = false; seenRight = false; centerFrames = 0; capturing = false;
+    clearInterval(livenessTimer);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    document.getElementById('after-capture').classList.add('hidden');
+    document.getElementById('cam-error').classList.add('hidden');
+    [1,2,3,4].forEach(i => setLSR(i, '', 'Waiting'));
+    setLSR(1, 'active', 'Detecting face...');
+    document.getElementById('selfie-face-thumb').style.opacity = '0.3';
+    document.getElementById('selfie-face-thumb').src = '';
+    document.getElementById('side-live-badge').classList.remove('live');
+    document.getElementById('side-live-badge').textContent = 'Pending';
+    document.getElementById('face-oval').className = 'face-oval';
+    document.getElementById('liveness-bar').style.display = 'none';
+    document.getElementById('cam-instruction').style.display = 'none';
+    document.getElementById('start-overlay').style.display = 'flex';
+    startCamera();
+  }
+
+  function showCamError(msg) {
+    const el = document.getElementById('cam-error');
+    el.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>${msg}</span>`;
+    el.classList.remove('hidden');
+  }
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+{% endblock %}
