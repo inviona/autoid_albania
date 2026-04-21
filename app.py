@@ -89,7 +89,9 @@ def extract_face(img_bgr, size=220):
         return None, None
 
     x, y, w, h = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
-    pad_x, pad_y = int(w * 0.20), int(h * 0.20)
+    # Increased padding to capture the full head (cheeks, chin, forehead)
+    # This prevents the elliptical mask from cutting off the eyes/mouth
+    pad_x, pad_y = int(w * 0.30), int(h * 0.35)
     x1 = max(0, x - pad_x)
     y1 = max(0, y - pad_y)
     x2 = min(img_bgr.shape[1], x + w + pad_x)
@@ -156,18 +158,43 @@ def compute_orb_score(face1, face2):
     Threshold = ORB_THRESHOLD derived in analysis.ipynb Section 3.
     """
     orb = cv2.ORB_create(nfeatures=500)
-    g1 = cv2.cvtColor(cv2.resize(face1, (220,220)), cv2.COLOR_BGR2GRAY)
-    g2 = cv2.cvtColor(cv2.resize(face2, (220,220)), cv2.COLOR_BGR2GRAY)
-    kp1, des1 = orb.detectAndCompute(g1, None)
-    kp2, des2 = orb.detectAndCompute(g2, None)
+    
+    # Apply bilateral filter *after* extraction, so it doesn't break Haar cascade
+    face1_flt = cv2.bilateralFilter(face1, d=9, sigmaColor=75, sigmaSpace=75)
+    face2_flt = cv2.bilateralFilter(face2, d=9, sigmaColor=75, sigmaSpace=75)
+    
+    g1 = cv2.cvtColor(cv2.resize(face1_flt, (220,220)), cv2.COLOR_BGR2GRAY)
+    g2 = cv2.cvtColor(cv2.resize(face2_flt, (220,220)), cv2.COLOR_BGR2GRAY)
+    
+    # 2. Elliptical Face Masking
+    mask = np.zeros((220, 220), dtype=np.uint8)
+    cv2.ellipse(mask, (110, 110), (80, 100), 0, 0, 360, 255, -1)
+    
+    kp1, des1 = orb.detectAndCompute(g1, mask=mask)
+    kp2, des2 = orb.detectAndCompute(g2, mask=mask)
+    
     if des1 is None or des2 is None or len(des1) < 5 or len(des2) < 5:
         return 0.0
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    matches = sorted(bf.match(des1, des2), key=lambda m: m.distance)
-    good = [m for m in matches if m.distance < 60]
+        
+    # 3. Lowe's Ratio Test (KNN Matching)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+    matches = bf.knnMatch(des1, des2, k=2)
+    
+    good = []
+    for match in matches:
+        if len(match) == 2:
+            m, n = match
+            if m.distance < 0.75 * n.distance:
+                good.append(m)
+                
     n_kp = min(len(kp1), len(kp2), 100)
-    score = (len(good) / n_kp) * 100 if n_kp > 0 else 0.0
-    return round(min(score, 100.0), 2)
+    score = (len(good) / max(n_kp, 1)) * 100
+    
+    # Optional scaling adjustment: because ratio test restricts matches significantly, 
+    # we apply a modest multiplier so the score roughly maps to the old 0-100 scale thresholds
+    adjusted_score = score * 1.5 
+    
+    return round(min(adjusted_score, 100.0), 2)
 
 
 def b64_to_img(b64_str):

@@ -395,6 +395,7 @@
   let seenRight = false;
   let centerFrames = 0;
   let capturing = false;
+  let centeredPhotoB64 = null; // Store the perfectly centered face
 
   // Load the ID face thumb from session (set by upload step)
   window.addEventListener('load', () => {
@@ -476,6 +477,10 @@
       if (relX >= CENTER_MIN && relX <= CENTER_MAX) {
         centerFrames++;
         instrText.textContent = 'Good! Now slowly turn your head LEFT ←';
+        if (centerFrames === 2) {
+            // Capture the HD photo perfectly centered!
+            centeredPhotoB64 = captureCurrentFrameHQ();
+        }
         if (centerFrames >= 2) {
           stage = 'left';
           setStage('left');
@@ -502,31 +507,35 @@
         stage = 'capture';
         setStage('done');
         setLSR(3, 'done', 'Right turn detected ✓');
-        setLSR(4, 'active', 'Capturing selfie...');
-        instrText.textContent = 'Hold still — capturing...';
+        setLSR(4, 'active', 'Processing selfie...');
+        instrText.textContent = 'Processing...';
         clearInterval(livenessTimer);
-        captureAndSend();
+        sendCenteredPhoto();
       }
     }
   }
 
-  async function captureAndSend() {
-    capturing = true;
+  function captureCurrentFrameHQ() {
     const video = document.getElementById('video');
     const canvas = document.getElementById('capture-canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    // brief delay so face is facing forward again
-    await delay(400);
     ctx.drawImage(video, 0, 0);
-    const b64 = canvas.toDataURL('image/jpeg', 0.92);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
+  async function sendCenteredPhoto() {
+    capturing = true;
+    
+    // Fallback if somehow centeredPhoto wasn't stored
+    let payloadStr = centeredPhotoB64 || captureCurrentFrameHQ();
 
     try {
       const res = await fetch('/api/capture-selfie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ frame_b64: b64 }),
+        body: JSON.stringify({ frame_b64: payloadStr }),
       });
       const data = await res.json();
 
@@ -586,7 +595,7 @@
   }
 
   function retakeCamera() {
-    stage = 'idle'; seenLeft = false; seenRight = false; centerFrames = 0; capturing = false;
+    stage = 'idle'; seenLeft = false; seenRight = false; centerFrames = 0; capturing = false; centeredPhotoB64 = null;
     clearInterval(livenessTimer);
     if (stream) stream.getTracks().forEach(t => t.stop());
     document.getElementById('after-capture').classList.add('hidden');
